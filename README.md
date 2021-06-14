@@ -1,4 +1,4 @@
-# TeslagradTAS
+# TinertiaTAS
 Simple TAS Tools for the game Tinertia
 
 ## Input File
