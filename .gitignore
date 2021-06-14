@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Files/Rewired_Core.dll
+/Files/UnityEngine.dll
+/Files/UnityEngine.CoreModule.dll

@@ -1,0 +1,208 @@
+// CgWebServerManager
+public static CgCallResult PostScore(CgLeaderboardDef leaderboardDef, int score, string name, CgDataFile scoreUGC)
+{
+	CgCallResult cgCallResult = new CgCallResult();
+	if (CgWebServerManager.VerifyAccess(cgCallResult))
+	{
+		cgCallResult.Error(-3000, null);
+	}
+	return cgCallResult;
+}
+
+// CgSteamManager
+public static CgCallResult PostScore(CgLeaderboardDef leaderboardDef, int score, int[] scoreDetails, CgDataFile scoreUGC = null)
+{
+	CgCallResult cgCallResult = new CgCallResult();
+	if (CgSteamManager.VerifyAccess(cgCallResult))
+	{
+		cgCallResult.Error(-2017, null);
+	}
+	return cgCallResult;
+}
+
+// CgServices
+public static CgCallResult PostScore(string leaderboardId, int score, string name = "", string scoreContext = null, CgDataFile scoreUGC = null)
+{
+	CgCallResult cgCallResult = new CgCallResult();
+	if (CgServices.VerifyAccess(cgCallResult))
+	{
+		cgCallResult.Error(-1000, null);
+	}
+	return cgCallResult;
+}
+
+// TinertiaInput
+private void Update()
+{
+	Manager.UpdateInputs();
+	if (CgGame.IsLoadingScene)
+	{
+		return;
+	}
+	if (dfGUIManager.ActiveControl != null)
+	{
+		dfControl activeControl = dfGUIManager.ActiveControl;
+		if (CgInput.UIUp)
+		{
+			activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, KeyCode.UpArrow, false, false, false));
+		}
+		else if (CgInput.UIDown)
+		{
+			activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, KeyCode.DownArrow, false, false, false));
+		}
+		else if (CgInput.UILeft)
+		{
+			activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, KeyCode.LeftArrow, false, false, false));
+		}
+		else if (CgInput.UIRight)
+		{
+			activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, KeyCode.RightArrow, false, false, false));
+		}
+	}
+	if (CgGame.TimeScale == 0f)
+	{
+		return;
+	}
+	BaseSceneController currentLevel = Tinertia.CurrentLevel;
+	if (currentLevel != null)
+	{
+		Player playerInput = CgInput.GetPlayerInput(0);
+		if (playerInput != null)
+		{
+			Vector3 vector = new Vector3(playerInput.GetAxis("Shoot_X"), playerInput.GetAxis("Shoot_Y"), 0f).DeadZone(0.2f, 1f);
+			if (Manager.Running)
+			{
+				vector = new Vector3(Manager.GetAxis("Shoot_X"), Manager.GetAxis("Shoot_Y")).DeadZone(0.2f, 1f);
+			}
+			currentLevel.cameraInput = ((!VRDevice.isPresent) ? vector : Vector3.zero);
+		}
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		if (Tinertia.ShowReplay)
+		{
+			CgReplay activeReplay = Tinertia.ActiveReplay;
+			for (int j = 0; j < activeReplay.PendingUpdatesCount; j++)
+			{
+				this.frameInput.SetFromReplay(activeReplay, j, i);
+				if (i == 0)
+				{
+					Manager.RecordReplay(this.frameInput);
+				}
+				this.ExecuteInput(this.frameInput, i, true);
+			}
+		}
+		else
+		{
+			if (i == 0)
+			{
+				Manager.RecordReplay(this.frameInput);
+			}
+			TinertiaInput.DetermineInput(out this.frameInput, i);
+			if (i == 0 && Manager.Running)
+			{
+				this.frameInput = Manager.GetFrameInputs();
+			}
+			CgRecording activeRecording = Tinertia.ActiveRecording;
+			if (activeRecording != null && activeRecording.State == CgRecordingState.Active)
+			{
+				activeRecording.RecordInput("ls_x", this.frameInput.stickLeft.x, i);
+				activeRecording.RecordInput("ls_y", this.frameInput.stickLeft.y, i);
+				activeRecording.RecordInput("rs_x", this.frameInput.stickRight.x, i);
+				activeRecording.RecordInput("rs_y", this.frameInput.stickRight.y, i);
+				activeRecording.RecordInput("b_d", this.frameInput.buttonDash, i);
+			}
+			this.ExecuteInput(this.frameInput, i, false);
+		}
+	}
+}
+
+// dfInputManager
+private void processJoystick()
+{
+	try
+	{
+		dfControl activeControl = dfGUIManager.ActiveControl;
+		if (!(activeControl == null) && activeControl.transform.IsChildOf(base.transform))
+		{
+			float axis = this.adapter.GetAxis(this.horizontalAxis);
+			float axis2 = this.adapter.GetAxis(this.verticalAxis);
+			if (Manager.Running)
+			{
+				axis = Manager.GetAxis("Horizontal");
+				axis2 = Manager.GetAxis("Vertical");
+			}
+			if (Mathf.Abs(axis) < 0.5f && Mathf.Abs(axis2) <= 0.5f)
+			{
+				this.lastAxisCheck = Time.deltaTime - this.axisPollingInterval;
+			}
+			if (Time.realtimeSinceStartup - this.lastAxisCheck > this.axisPollingInterval)
+			{
+				if (Mathf.Abs(axis) >= 0.5f)
+				{
+					this.lastAxisCheck = Time.realtimeSinceStartup;
+					KeyCode key = (axis <= 0f) ? KeyCode.LeftArrow : KeyCode.RightArrow;
+					activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, key, false, false, false));
+				}
+				if (Mathf.Abs(axis2) >= 0.5f)
+				{
+					this.lastAxisCheck = Time.realtimeSinceStartup;
+					KeyCode key2 = (axis2 <= 0f) ? KeyCode.DownArrow : KeyCode.UpArrow;
+					activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, key2, false, false, false));
+				}
+			}
+			if (this.joystickClickButton != KeyCode.None)
+			{
+				bool keyDown = this.adapter.GetKeyDown(this.joystickClickButton);
+				if (Manager.Running)
+				{
+					keyDown = Manager.GetKeyDown(this.joystickClickButton);
+				}
+				if (keyDown)
+				{
+					Vector3 center = activeControl.GetCenter();
+					Camera camera = activeControl.GetCamera();
+					Ray ray = camera.ScreenPointToRay(camera.WorldToScreenPoint(center));
+					dfMouseEventArgs args = new dfMouseEventArgs(activeControl, dfMouseButtons.Left, 0, ray, center, 0f);
+					activeControl.OnMouseDown(args);
+					this.buttonDownTarget = activeControl;
+				}
+				bool keyUp = this.adapter.GetKeyUp(this.joystickClickButton);
+				if (Manager.Running)
+				{
+					keyUp = Manager.GetKeyUp(this.joystickClickButton);
+				}
+				if (keyUp)
+				{
+					if (this.buttonDownTarget == activeControl)
+					{
+						activeControl.DoClick();
+					}
+					Vector3 center2 = activeControl.GetCenter();
+					Camera camera2 = activeControl.GetCamera();
+					Ray ray2 = camera2.ScreenPointToRay(camera2.WorldToScreenPoint(center2));
+					dfMouseEventArgs args2 = new dfMouseEventArgs(activeControl, dfMouseButtons.Left, 0, ray2, center2, 0f);
+					activeControl.OnMouseUp(args2);
+					this.buttonDownTarget = null;
+				}
+			}
+			for (KeyCode keyCode = KeyCode.Joystick1Button0; keyCode <= KeyCode.Joystick1Button19; keyCode++)
+			{
+				bool keyDown2 = this.adapter.GetKeyDown(keyCode);
+				if (Manager.Running)
+				{
+					keyDown2 = Manager.GetKeyDown(keyCode);
+				}
+				if (keyDown2)
+				{
+					activeControl.OnKeyDown(new dfKeyEventArgs(activeControl, keyCode, false, false, false));
+				}
+			}
+		}
+	}
+	catch (UnityException ex)
+	{
+		Debug.LogError(ex.ToString(), this);
+		this.useJoystick = false;
+	}
+}
