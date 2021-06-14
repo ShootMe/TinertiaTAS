@@ -77,14 +77,14 @@ namespace TAS {
                         switch (Tinertia.GameMode) {
                             case TinertiaGameMode.Campaign:
                             case TinertiaGameMode.Gauntlet:
-                                Tinertia.RestartLevel(false);
+                                Tinertia.instance.DoRestartLevel(false);
                                 break;
                             case TinertiaGameMode.SpeedRun: {
                                     bool flag = Tinertia.CurrentLevel as World != null;
                                     if (flag && Tinertia.CurrentLevel.CurrentSectionIndex == 0) {
-                                        Tinertia.RestartWorld(false);
+                                        Tinertia.instance.DoRestartWorld(false);
                                     } else {
-                                        Tinertia.RestartLevel(false);
+                                        Tinertia.instance.DoRestartLevel(false);
                                     }
                                     break;
                                 }
